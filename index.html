@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Silexia Studio - Grand Theft Auto VI Launcher</title>
+  <meta name="description" content="An open-source fan launcher for Grand Theft Auto VI by Silexia Studio. Trailers, artwork and more in one place." />
+  <meta name="theme-color" content="#08061a" />
+  <link rel="icon" type="image/png" href="assets/logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="preload" as="image" href="assets/art_01.jpg" />
+
+  <style>
+    /* ===================== CONFIG (editable in the <script> too) ===================== */
+    :root {
+      --blue: #0a3ecf;
+      --indigo: #4a48c3;
+      --violet: #9d4ebb;
+      --pink: #ff50a4;
+      --peach: #ff7b8e;
+      --amber: #ffc477;
+      --bg: #08061a;
+      --line: rgba(255, 255, 255, .1);
+      --muted: rgba(255, 255, 255, .6);
+      --ease: cubic-bezier(.16, 1, .3, 1);
+      --ease-io: cubic-bezier(.65, 0, .35, 1);
+      --vi: linear-gradient(165deg, #ffc477 0%, #ff7b8e 30%, #ff50a4 55%, #9d4ebb 82%, #4a48c3 100%);
+      --cta: linear-gradient(90deg, #4a48c3 0%, #9d4ebb 35%, #ff50a4 75%, #ff7b8e 100%);
+      --pad: clamp(20px, 4vw, 64px);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; overflow: hidden; background: var(--bg); }
+    body {
+      font-family: 'Inter Tight', 'Segoe UI', system-ui, sans-serif;
+      color: #fff;
+      -webkit-font-smoothing: antialiased;
+      font-feature-settings: "ss01", "cv11";
+    }
+    a { color: inherit; text-decoration: none; }
+    button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+    img { display: block; user-select: none; -webkit-user-drag: none; }
+    :focus-visible { outline: 2px solid var(--pink); outline-offset: 3px; border-radius: 10px; }
+
+    /* ============================== STAGE ============================== */
+    .stage { position: fixed; inset: 0; overflow: hidden; }
+    .stage__parallax { position: absolute; inset: -3%; will-change: transform; }
+    .slide { position: absolute; inset: 0; opacity: 0; transition: opacity 1.6s var(--ease-io); }
+    .slide.is-active { opacity: 1; z-index: 1; }
+    .slide img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.04); }
+    .slide.is-active img { animation: kenburns 12s linear forwards; }
+    @keyframes kenburns { from { transform: scale(1.04); } to { transform: scale(1.15); } }
+
+    .shade {
+      position: absolute; inset: 0; z-index: 2; pointer-events: none;
+      background:
+        linear-gradient(90deg, rgba(8,6,26,.92) 0%, rgba(8,6,26,.55) 36%, rgba(8,6,26,0) 66%),
+        linear-gradient(0deg, rgba(8,6,26,.95) 0%, rgba(8,6,26,0) 38%),
+        linear-gradient(180deg, rgba(8,6,26,.65) 0%, rgba(8,6,26,0) 20%);
+    }
+    .tint {
+      position: absolute; inset: 0; z-index: 2; pointer-events: none; mix-blend-mode: soft-light;
+      background:
+        radial-gradient(110% 80% at 100% 100%, rgba(255,80,164,.55), transparent 60%),
+        radial-gradient(90% 70% at 0% 0%, rgba(10,62,207,.5), transparent 60%);
+    }
+    .palms { position: absolute; z-index: 3; pointer-events: none; opacity: .5; mix-blend-mode: multiply; will-change: transform; }
+    .palms--tr { top: -2%; right: -2%; width: min(38vw, 560px); transform-origin: 100% 0; animation: sway 9s ease-in-out infinite alternate; }
+    .palms--bl { bottom: -4%; left: -3%; width: min(36vw, 520px); transform-origin: 0 100%; animation: sway 11s ease-in-out infinite alternate-reverse; }
+    .palms img { width: 100%; }
+    @keyframes sway { from { rotate: -1.6deg; } to { rotate: 1.8deg; } }
+
+    .glow {
+      position: fixed; z-index: 4; pointer-events: none; width: 560px; height: 560px; border-radius: 50%;
+      left: 0; top: 0; translate: -50% -50%;
+      background: radial-gradient(circle, rgba(255,80,164,.22), rgba(74,72,195,.12) 40%, transparent 70%);
+      mix-blend-mode: screen; opacity: 0; transition: opacity .6s;
+    }
+    body.has-pointer .glow { opacity: 1; }
+
+    /* ============================== LAYOUT ============================== */
+    .ui {
+      position: relative; z-index: 10; height: 100svh;
+      display: grid; grid-template-rows: auto 1fr auto;
+      padding: clamp(14px, 2.4vh, 26px) var(--pad);
+    }
+
+    /* Header */
+    .top { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand img { width: 40px; height: 40px; border-radius: 11px; box-shadow: 0 8px 24px -8px rgba(255,80,164,.8), 0 0 0 1px rgba(255,255,255,.18); }
+    .brand span { font-weight: 700; font-size: 13px; letter-spacing: .2em; text-transform: uppercase; color: rgba(255,255,255,.8); }
+    .nav { display: flex; align-items: center; gap: 4px; padding: 5px; border-radius: 999px; background: rgba(8,6,26,.35); border: 1px solid var(--line); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    .nav a, .nav button { position: relative; padding: 9px 18px; border-radius: 999px; font-size: 13px; font-weight: 600; color: rgba(255,255,255,.7); transition: color .3s, background .3s; }
+    .nav a:hover, .nav button:hover { color: #fff; background: rgba(255,255,255,.08); }
+
+    /* Hero */
+    .hero { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 32px; padding-bottom: clamp(40px, 10vh, 120px); }
+    .gallery { align-self: end; }
+    .copy { max-width: 760px; }
+    .eyebrow { display: inline-flex; align-items: center; gap: 10px; font-size: 11px; font-weight: 700; letter-spacing: .26em; text-transform: uppercase; color: var(--muted); }
+    .eyebrow::before { content: ""; width: 28px; height: 2px; border-radius: 2px; background: var(--cta); }
+
+    .title { margin-top: clamp(10px, 2vh, 20px); line-height: 1; }
+    .title__top { display: block; font-size: clamp(13px, 1.5vw, 18px); font-weight: 800; letter-spacing: .44em; text-transform: uppercase; }
+    .title__vi {
+      position: relative; display: inline-block; margin-left: -.04em;
+      font-size: clamp(110px, min(22vh, 15vw), 230px); font-weight: 900; letter-spacing: -.06em; line-height: .8;
+      background: var(--vi); -webkit-background-clip: text; background-clip: text; color: transparent;
+      filter: drop-shadow(0 12px 50px rgba(255,80,164,.4));
+      padding: .04em .06em .06em 0;
+    }
+    .title__vi::after { /* light sweep */
+      content: "VI"; position: absolute; inset: 0; padding: inherit;
+      background: linear-gradient(110deg, transparent 40%, rgba(255,255,255,.85) 50%, transparent 60%) no-repeat;
+      background-size: 250% 100%; background-position: 150% 0;
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+      animation: sweep 6s var(--ease-io) 3.2s infinite;
+    }
+    @keyframes sweep { 0%, 70% { background-position: 150% 0; } 100% { background-position: -50% 0; } }
+
+    .lead { margin-top: clamp(8px, 1.6vh, 16px); max-width: 460px; font-size: clamp(14px, 1.2vw, 16.5px); line-height: 1.6; color: rgba(255,255,255,.75); }
+
+    /* Countdown */
+    .count { margin-top: 0; }
+    .count__label { display: inline-flex; align-items: center; gap: 12px; font-size: clamp(12px, 1vw, 14px); font-weight: 800; letter-spacing: .3em; text-transform: uppercase; color: rgba(255,255,255,.75); }
+    .count__label::before { content: ""; width: 34px; height: 2px; border-radius: 2px; background: var(--cta); }
+    .count__grid { margin-top: clamp(14px, 2.2vh, 22px); display: flex; gap: clamp(10px, 1vw, 16px); }
+    .unit {
+      width: clamp(84px, 9vw, 150px); padding: clamp(12px, 2.2vh, 24px) 0 clamp(10px, 1.6vh, 18px);
+      border-radius: clamp(16px, 1.6vw, 24px); text-align: center;
+      background: linear-gradient(180deg, rgba(255,255,255,.1), rgba(255,255,255,.03));
+      border: 1px solid rgba(255,255,255,.12);
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.12);
+    }
+    .unit__num { position: relative; height: clamp(44px, 8vh, 86px); overflow: hidden; font-size: clamp(42px, 7.6vh, 82px); font-weight: 800; letter-spacing: -.04em; line-height: 1; font-variant-numeric: tabular-nums; }
+    .unit__num span { position: absolute; inset: 0; display: block; }
+    .unit__num span.in { animation: digitIn .55s var(--ease) both; }
+    .unit__num span.out { animation: digitOut .55s var(--ease) both; }
+    @keyframes digitIn { from { transform: translateY(100%); opacity: 0; filter: blur(4px); } to { transform: none; opacity: 1; filter: none; } }
+    @keyframes digitOut { from { transform: none; opacity: 1; } to { transform: translateY(-100%); opacity: 0; filter: blur(4px); } }
+    .unit__lbl { margin-top: 6px; font-size: clamp(10px, .8vw, 12px); font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: rgba(255,255,255,.5); }
+    .count.is-live .count__grid { display: none; }
+
+    /* Buttons */
+    .ctas { margin-top: clamp(20px, 4vh, 40px); display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+    .btn {
+      position: relative; isolation: isolate; overflow: hidden;
+      display: inline-flex; align-items: center; gap: 12px; height: clamp(52px, 7vh, 64px); padding: 0 clamp(22px, 2vw, 30px); border-radius: 16px;
+      font-size: clamp(13px, 1vw, 15px); font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+      transition: transform .4s var(--ease), box-shadow .4s var(--ease), background-position .8s var(--ease), background-color .3s;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn--primary {
+      background: var(--cta); background-size: 170% 100%; background-position: 0 0;
+      box-shadow: 0 14px 40px -12px rgba(255,80,164,.8), 0 8px 26px -12px rgba(74,72,195,.9), inset 0 1px 0 rgba(255,255,255,.3);
+    }
+    .btn--primary:hover { background-position: 100% 0; transform: translateY(-2px); box-shadow: 0 20px 50px -12px rgba(255,80,164,.95), 0 10px 30px -12px rgba(74,72,195,.95), inset 0 1px 0 rgba(255,255,255,.35); }
+    .btn--primary::after {
+      content: ""; position: absolute; inset: 0; z-index: -1;
+      background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,.55) 50%, transparent 65%);
+      transform: translateX(-130%); animation: sheen 4.5s var(--ease-io) 2.6s infinite;
+    }
+    @keyframes sheen { 0%, 60% { transform: translateX(-130%); } 100% { transform: translateX(130%); } }
+    .btn small { display: block; font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: none; opacity: .8; margin-top: 1px; }
+    .btn__stack { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.1; }
+    .btn--ghost { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    .btn--ghost:hover { background: rgba(255,255,255,.14); transform: translateY(-2px); }
+    .btn--icon { width: clamp(52px, 7vh, 64px); padding: 0; justify-content: center; }
+    .play-dot { width: 26px; height: 26px; border-radius: 50%; background: #fff; display: grid; place-items: center; margin-left: -6px; transition: transform .4s var(--ease); }
+    .btn:hover .play-dot { transform: scale(1.12); }
+
+    /* Gallery (right) */
+    .gallery { display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
+    .caption { text-align: right; }
+    .caption__k { font-size: 10.5px; font-weight: 700; letter-spacing: .24em; text-transform: uppercase; color: var(--muted); }
+    .caption__t { margin-top: 4px; font-size: 16px; font-weight: 700; }
+    .caption.swap { animation: capIn .7s var(--ease) both; }
+    @keyframes capIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    .thumbs { display: flex; gap: 8px; }
+    .thumb {
+      position: relative; width: clamp(56px, 5vw, 74px); aspect-ratio: 16/9; border-radius: 10px; overflow: hidden;
+      opacity: .5; transform: scale(.94); box-shadow: 0 0 0 1px rgba(255,255,255,.18);
+      transition: opacity .5s var(--ease), transform .5s var(--ease), width .5s var(--ease), box-shadow .5s var(--ease);
+    }
+    .thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .thumb:hover { opacity: .85; transform: scale(1); }
+    .thumb.is-active { opacity: 1; transform: scale(1); width: clamp(76px, 7vw, 100px); box-shadow: 0 0 0 1.5px #fff, 0 12px 26px -10px rgba(0,0,0,.8); }
+    .thumb i { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: rgba(0,0,0,.4); }
+    .thumb i::after { content: ""; position: absolute; inset: 0; transform-origin: left; transform: scaleX(0); background: linear-gradient(90deg, var(--indigo), var(--pink)); }
+    .thumb.is-active i::after { animation: progress var(--slide-ms, 7000ms) linear forwards; }
+    body.is-paused .thumb.is-active i::after { animation-play-state: paused; }
+    @keyframes progress { to { transform: scaleX(1); } }
+
+    /* Footer */
+    .foot { display: flex; align-items: center; justify-content: space-between; gap: 20px; font-size: 11.5px; color: rgba(255,255,255,.42); }
+    .foot a:hover { color: #fff; }
+    .foot__links { display: flex; gap: 18px; white-space: nowrap; }
+
+    /* ============================== INTRO ============================== */
+    .intro { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; overflow: hidden; animation: introOut 1s var(--ease-io) 1.9s forwards; }
+    .intro__bg { position: absolute; inset: -4%; background: url('assets/brand_bg.jpg') center/cover; }
+    .intro__logo { position: relative; width: 120px; height: 120px; border-radius: 30px; box-shadow: 0 30px 80px -20px rgba(10,62,207,.8), 0 0 0 1px rgba(255,255,255,.3); animation: logoPop 1.4s var(--ease) both; }
+    .intro__halo { position: absolute; width: 260px; height: 260px; border-radius: 50%; background: rgba(255,255,255,.35); filter: blur(60px); animation: halo 2s ease-in-out infinite alternate; }
+    @keyframes logoPop { 0% { opacity: 0; transform: scale(.7); filter: blur(14px); } 100% { opacity: 1; transform: none; filter: none; } }
+    @keyframes halo { from { opacity: .4; transform: scale(.9); } to { opacity: .9; transform: scale(1.1); } }
+    @keyframes introOut { to { clip-path: inset(0 0 100% 0); visibility: hidden; } }
+
+    /* Reveal choreography (starts when body.is-ready) */
+    .rv { opacity: 0; transform: translateY(22px); }
+    body.is-ready .rv { animation: rise 1s var(--ease) both; animation-delay: calc(var(--d, 0) * 90ms + 150ms); }
+    @keyframes rise { to { opacity: 1; transform: none; } }
+    body.is-ready .title__vi.rv { animation: viIn 1.6s var(--ease) both; animation-delay: 300ms; }
+    @keyframes viIn { 0% { opacity: 0; transform: translateY(30px) scale(1.06); filter: blur(16px) drop-shadow(0 12px 50px rgba(255,80,164,.4)); } 100% { opacity: 1; transform: none; filter: drop-shadow(0 12px 50px rgba(255,80,164,.4)); } }
+
+    /* ============================== MODAL ============================== */
+    .modal { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: var(--pad); background: rgba(4,3,12,.82); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); opacity: 0; visibility: hidden; transition: opacity .5s var(--ease), visibility .5s; }
+    .modal.is-open { opacity: 1; visibility: visible; }
+    .modal__box { position: relative; width: min(1180px, 100%); aspect-ratio: 16/9; max-height: 80vh; border-radius: 20px; overflow: hidden; background: #000; box-shadow: 0 40px 120px -20px rgba(0,0,0,.9), 0 0 0 1px rgba(255,255,255,.12); transform: translateY(24px) scale(.97); transition: transform .6s var(--ease); }
+    .modal.is-open .modal__box { transform: none; }
+    .modal video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+    .modal__close { position: absolute; top: 14px; right: 14px; width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.2); backdrop-filter: blur(8px); transition: background .3s; z-index: 2; }
+    .modal__close:hover { background: rgba(255,255,255,.2); }
+
+    .toast { position: fixed; left: 50%; bottom: 28px; z-index: 95; translate: -50% 20px; opacity: 0; padding: 12px 18px; border-radius: 12px; font-size: 13px; font-weight: 600; background: rgba(8,6,26,.85); border: 1px solid var(--line); backdrop-filter: blur(12px); transition: opacity .4s var(--ease), translate .4s var(--ease); }
+    .toast.is-on { opacity: 1; translate: -50% 0; }
+
+    /* ============================== RESPONSIVE ============================== */
+    @media (max-width: 900px) {
+      .nav { display: none; }
+      .hero { grid-template-columns: 1fr; }
+      .gallery { display: none; }
+      .foot__links { display: none; }
+    }
+    @media (max-width: 480px) {
+      .brand span { display: none; }
+    }
+    @media (max-height: 640px) {
+      .lead { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+      .rv { opacity: 1; transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Intro -->
+  <div class="intro" aria-hidden="true">
+    <div class="intro__bg"></div>
+    <div class="intro__halo"></div>
+    <img class="intro__logo" src="assets/logo.png" alt="" />
+  </div>
+
+  <!-- Background stage -->
+  <div class="stage" aria-hidden="true">
+    <div class="stage__parallax" id="parallax"></div>
+    <div class="tint"></div>
+    <div class="shade"></div>
+    <div class="palms palms--tr" data-depth="18"><img src="assets/palms_tr.png" alt="" /></div>
+    <div class="palms palms--bl" data-depth="-14"><img src="assets/palms_bl.png" alt="" /></div>
+  </div>
+  <div class="glow" id="glow" aria-hidden="true"></div>
+
+  <!-- UI -->
+  <div class="ui">
+    <header class="top">
+      <a class="brand rv" style="--d:0" href="#" aria-label="Silexia Studio">
+        <img src="assets/logo.png" alt="" />
+      </a>
+      <nav class="nav rv" style="--d:1" aria-label="Main">
+        <button type="button" data-open-trailer>Trailer</button>
+        <a href="#" data-link="github" target="_blank" rel="noopener">GitHub</a>
+        <a href="#" data-link="releases" target="_blank" rel="noopener">Releases</a>
+        <a href="https://www.rockstargames.com/VI" target="_blank" rel="noopener">Official site</a>
+      </nav>
+      <a class="btn btn--ghost rv" style="--d:2;height:44px;padding:0 18px" href="#" data-link="download">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 21h16"/></svg>
+        Download
+      </a>
+    </header>
+
+    <main class="hero">
+      <section class="copy">
+        <div class="count rv" style="--d:5" id="count">
+          <div class="count__label" id="countLabel">Launcher v1.0 drops in</div>
+          <div class="count__grid" role="timer" aria-live="off">
+            <div class="unit"><div class="unit__num" data-u="d"><span>00</span></div><div class="unit__lbl">Days</div></div>
+            <div class="unit"><div class="unit__num" data-u="h"><span>00</span></div><div class="unit__lbl">Hours</div></div>
+            <div class="unit"><div class="unit__num" data-u="m"><span>00</span></div><div class="unit__lbl">Min</div></div>
+            <div class="unit"><div class="unit__num" data-u="s"><span>00</span></div><div class="unit__lbl">Sec</div></div>
+          </div>
+        </div>
+
+        <div class="ctas rv" style="--d:6">
+          <a class="btn btn--primary" href="#" data-link="download">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.1 10.4 4v7.2H3V5.1Zm0 13.8 7.4 1.1v-7.1H3v6Zm8.2 1.2L21 21.5v-8.6h-9.8v7.2Zm0-16.2v7.3H21V2.5l-9.8 1.4Z"/></svg>
+            <span class="btn__stack">Download launcher<small id="dlMeta">Windows 10 / 11 · Free</small></span>
+          </a>
+          <button class="btn btn--ghost" type="button" data-open-trailer>
+            <span class="play-dot"><svg width="11" height="11" viewBox="0 0 24 24" fill="#0b0912"><path d="M7 4.5v15l13-7.5z"/></svg></span>
+            Watch trailer
+          </button>
+          <a class="btn btn--ghost btn--icon" href="#" data-link="github" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.73.5.75 5.48.75 11.75c0 4.98 3.23 9.2 7.7 10.69.56.1.77-.24.77-.54v-1.9c-3.13.68-3.79-1.51-3.79-1.51-.51-1.3-1.25-1.65-1.25-1.65-1.02-.7.08-.69.08-.69 1.13.08 1.73 1.16 1.73 1.16 1 1.72 2.64 1.22 3.28.93.1-.73.39-1.22.71-1.5-2.5-.28-5.13-1.25-5.13-5.57 0-1.23.44-2.24 1.16-3.03-.12-.28-.5-1.43.11-2.98 0 0 .95-.3 3.1 1.16a10.8 10.8 0 0 1 5.64 0c2.15-1.46 3.1-1.16 3.1-1.16.61 1.55.23 2.7.11 2.98.72.79 1.16 1.8 1.16 3.03 0 4.33-2.64 5.28-5.15 5.56.4.35.76 1.03.76 2.08v3.08c0 .3.2.65.78.54a11.26 11.26 0 0 0 7.69-10.69C23.25 5.48 18.27.5 12 .5Z"/></svg>
+          </a>
+        </div>
+      </section>
+
+      <aside class="gallery rv" style="--d:7">
+        <div class="caption" id="caption">
+          <div class="caption__k" id="capK">Official artwork · 01/05</div>
+          <div class="caption__t" id="capT">Vice City</div>
+        </div>
+        <div class="thumbs" id="thumbs" role="tablist" aria-label="Artwork"></div>
+      </aside>
+    </main>
+
+    <footer class="foot rv" style="--d:8">
+      <p>Not affiliated with or endorsed by Rockstar Games or Take-Two Interactive. Grand Theft Auto VI artwork © Rockstar Games.</p>
+      <div class="foot__links">
+        <a href="#" data-link="github" target="_blank" rel="noopener">Source code</a>
+        <span>© <span id="year"></span> Silexia Studio</span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Trailer modal -->
+  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-label="Trailer">
+    <div class="modal__box">
+      <button class="modal__close" type="button" id="modalClose" aria-label="Close trailer">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+      <video id="video" src="assets/trailer.mp4" poster="assets/trailer_poster.jpg" controls playsinline preload="none"></video>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script>
+    /* ============================== CONFIG ============================== */
+    const CONFIG = {
+      // Countdown target (launcher release). Change to any date/time.
+      launchDate: '2026-11-30T00:00:00+01:00',
+      github: 'https://github.com/SilexiaStudio/gta6-game-launcher',
+      download: 'https://github.com/SilexiaStudio/gta6-game-launcher/releases/latest',
+      slideMs: 7000,
+      slides: [
+        { src: 'assets/art_01.jpg', thumb: 'assets/thumb_01.jpg', title: 'Vice City', kind: 'Official artwork', pos: '62% 50%' },
+        { src: 'assets/art_02.jpg', thumb: 'assets/thumb_02.jpg', title: 'Lucia Caminos', kind: 'Screenshot', pos: '72% 40%' },
+        { src: 'assets/art_03.jpg', thumb: 'assets/thumb_03.jpg', title: 'Jason & Lucia', kind: 'Screenshot', pos: '62% 40%' },
+        { src: 'assets/art_04.jpg', thumb: 'assets/thumb_04.jpg', title: 'Lucia Caminos', kind: 'Screenshot', pos: '28% 35%' },
+        { src: 'assets/art_05.jpg', thumb: 'assets/thumb_05.jpg', title: 'Jason Duval', kind: 'Screenshot', pos: '40% 40%' },
+      ],
+    };
+
+    const $ = (s, r = document) => r.querySelector(s);
+    const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const pad = n => String(n).padStart(2, '0');
+
+    /* Links */
+    $$('[data-link]').forEach(a => {
+      const key = a.dataset.link;
+      a.href = key === 'github' ? CONFIG.github : CONFIG.download;
+      if (key !== 'github') { a.target = '_blank'; a.rel = 'noopener'; }
+    });
+    $('#year').textContent = new Date().getFullYear();
+
+    /* Intro → reveal */
+    window.addEventListener('load', () => setTimeout(() => document.body.classList.add('is-ready'), reduced ? 0 : 1900));
+    setTimeout(() => document.body.classList.add('is-ready'), 3500); // safety
+
+    /* ============================== SLIDES ============================== */
+    const parallax = $('#parallax');
+    const thumbs = $('#thumbs');
+    document.documentElement.style.setProperty('--slide-ms', CONFIG.slideMs + 'ms');
+    const slideEls = CONFIG.slides.map((s, i) => {
+      const el = document.createElement('div');
+      el.className = 'slide';
+      el.innerHTML = `<img src="${s.src}" alt="" ${i ? 'loading="lazy"' : 'fetchpriority="high"'} decoding="async" style="object-position:${s.pos}">`;
+      parallax.appendChild(el);
+      const b = document.createElement('button');
+      b.className = 'thumb';
+      b.type = 'button';
+      b.setAttribute('role', 'tab');
+      b.setAttribute('aria-label', `Show ${s.title}`);
+      b.innerHTML = `<img src="${s.thumb}" alt=""><i></i>`;
+      b.addEventListener('click', () => go(i));
+      thumbs.appendChild(b);
+      return el;
+    });
+    const thumbEls = $$('.thumb', thumbs);
+
+    let current = -1, timer = null, remaining = CONFIG.slideMs, startedAt = 0;
+    function go(i) {
+      if (i === current) return;
+      const prev = slideEls[current];
+      current = (i + slideEls.length) % slideEls.length;
+      slideEls.forEach((el, k) => {
+        el.classList.toggle('is-active', k === current);
+        if (k === current) { const img = el.firstElementChild; img.style.animation = 'none'; img.offsetHeight; img.style.animation = ''; }
+      });
+      if (prev) prev.style.zIndex = 0;
+      thumbEls.forEach((t, k) => {
+        t.classList.toggle('is-active', k === current);
+        t.setAttribute('aria-selected', k === current);
+        const bar = t.querySelector('i'); bar.replaceWith(bar.cloneNode()); // restart progress
+      });
+      const s = CONFIG.slides[current];
+      const cap = $('#caption');
+      $('#capK').textContent = `${s.kind} · ${pad(current + 1)}/${pad(CONFIG.slides.length)}`;
+      $('#capT').textContent = s.title;
+      cap.classList.remove('swap'); cap.offsetWidth; cap.classList.add('swap');
+      // preload next
+      const n = new Image(); n.src = CONFIG.slides[(current + 1) % CONFIG.slides.length].src;
+      schedule(CONFIG.slideMs);
+    }
+    function schedule(ms) {
+      clearTimeout(timer);
+      remaining = ms; startedAt = performance.now();
+      if (!reduced && !document.body.classList.contains('is-paused')) timer = setTimeout(() => go(current + 1), ms);
+    }
+    function pause() {
+      if (document.body.classList.contains('is-paused')) return;
+      document.body.classList.add('is-paused');
+      clearTimeout(timer);
+      remaining -= performance.now() - startedAt;
+    }
+    function resume() {
+      if (!document.body.classList.contains('is-paused')) return;
+      document.body.classList.remove('is-paused');
+      schedule(Math.max(300, remaining));
+    }
+    go(0);
+    document.addEventListener('visibilitychange', () => document.hidden ? pause() : resume());
+    addEventListener('keydown', e => {
+      if ($('#modal').classList.contains('is-open')) { if (e.key === 'Escape') closeTrailer(); return; }
+      if (e.key === 'ArrowRight') go(current + 1);
+      if (e.key === 'ArrowLeft') go(current - 1);
+    });
+
+    /* ============================== PARALLAX + GLOW ============================== */
+    if (!reduced) {
+      const glow = $('#glow');
+      const palms = $$('.palms');
+      let tx = 0, ty = 0, cx = 0, cy = 0, gx = innerWidth / 2, gy = innerHeight / 2, mx = gx, my = gy, raf = 0;
+      addEventListener('pointermove', e => {
+        document.body.classList.add('has-pointer');
+        mx = e.clientX; my = e.clientY;
+        tx = (e.clientX / innerWidth - .5) * 2; ty = (e.clientY / innerHeight - .5) * 2;
+        if (!raf) raf = requestAnimationFrame(loop);
+      }, { passive: true });
+      function loop() {
+        cx += (tx - cx) * .06; cy += (ty - cy) * .06;
+        gx += (mx - gx) * .14; gy += (my - gy) * .14;
+        parallax.style.transform = `translate3d(${cx * -16}px, ${cy * -10}px, 0)`;
+        palms.forEach(p => { const d = +p.dataset.depth; p.style.translate = `${cx * d}px ${cy * d * .6}px`; });
+        glow.style.transform = `translate3d(${gx}px, ${gy}px, 0)`;
+        raf = (Math.abs(tx - cx) + Math.abs(ty - cy) + Math.abs(mx - gx) + Math.abs(my - gy) > .05) ? requestAnimationFrame(loop) : 0;
+      }
+      // Magnetic buttons
+      $$('.btn').forEach(b => {
+        b.addEventListener('pointermove', e => {
+          const r = b.getBoundingClientRect();
+          b.style.translate = `${(e.clientX - r.left - r.width / 2) * .12}px ${(e.clientY - r.top - r.height / 2) * .2}px`;
+        });
+        b.addEventListener('pointerleave', () => { b.style.translate = ''; });
+      });
+    }
+
+    /* ============================== COUNTDOWN ============================== */
+    const target = new Date(CONFIG.launchDate).getTime();
+    const units = { d: $('[data-u="d"]'), h: $('[data-u="h"]'), m: $('[data-u="m"]'), s: $('[data-u="s"]') };
+    const last = {};
+    function setUnit(k, v) {
+      if (last[k] === v) return;
+      const box = units[k];
+      const old = box.querySelector('span:not(.out)');
+      if (last[k] !== undefined && !reduced) {
+        old.className = 'out';
+        old.addEventListener('animationend', () => old.remove(), { once: true });
+        const n = document.createElement('span'); n.className = 'in'; n.textContent = v; box.appendChild(n);
+      } else { old.textContent = v; }
+      last[k] = v;
+    }
+    function tick() {
+      const diff = target - Date.now();
+      if (diff <= 0) {
+        $('#count').classList.add('is-live');
+        $('#countLabel').textContent = 'Launcher v1.0 — out now';
+        return;
+      }
+      const s = Math.floor(diff / 1000);
+      setUnit('d', pad(Math.floor(s / 86400)));
+      setUnit('h', pad(Math.floor(s / 3600) % 24));
+      setUnit('m', pad(Math.floor(s / 60) % 60));
+      setUnit('s', pad(s % 60));
+      setTimeout(tick, 1000 - (Date.now() % 1000) + 5);
+    }
+    tick();
+
+    /* ============================== TRAILER ============================== */
+    const modal = $('#modal'), video = $('#video');
+    function openTrailer() { modal.classList.add('is-open'); pause(); video.play().catch(() => {}); }
+    function closeTrailer() { modal.classList.remove('is-open'); video.pause(); resume(); }
+    $$('[data-open-trailer]').forEach(b => b.addEventListener('click', openTrailer));
+    $('#modalClose').addEventListener('click', closeTrailer);
+    modal.addEventListener('click', e => { if (e.target === modal) closeTrailer(); });
+  </script>
+</body>
+</html>
